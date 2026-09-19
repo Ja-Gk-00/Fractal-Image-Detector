@@ -1,0 +1,14 @@
+site_name: Fractal Image Detector
+strict: true
+nav:
+  - Overview: index.md
+  - Usage and API: usage.md
+  - Python method reference: api.md
+  - Create a configuration: configuration.md
+  - Data sources and splits: data.md
+  - MLflow tutorial: mlflow.md
+  - Large image directories: directories.md
+  - How the methods work: methods.md
+  - Technology stack: tech-stack.md
+  - Development: development.md
+  - Literature: literature.md

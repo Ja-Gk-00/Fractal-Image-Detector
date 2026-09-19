@@ -1,0 +1,100 @@
+[build-system]
+requires = ["setuptools>=84.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fractal-image-detector"
+version = "0.1.0"
+description = "Interpretable fractal features and supervised detection of synthetic images"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+  "numpy>=2.5.3",
+  "pillow>=12.3.0",
+  "scipy>=1.18.1",
+  "scikit-learn>=1.9.1",
+  "pydantic>=2.13.5",
+  "pyyaml>=6.0.3",
+  "pyarrow>=25.0.1",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: C",
+  "Topic :: Scientific/Engineering :: Image Processing",
+  "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+mlflow = ["mlflow>=3.16.0"]
+
+[project.scripts]
+fractal-detector = "fractal_detector.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=9.1.1", "pytest-cov>=7.1.0", "hypothesis>=6.168.0",
+  "ruff>=0.16.7", "ty>=0.0.81", "pre-commit>=4.6.2",
+  "build>=1.6.1", "twine>=7.0.0", "pip-audit>=2.10.1",
+  "setuptools>=84.0.0", "clang-format>=23.1.1",
+]
+docs = ["mkdocs>=1.6.1"]
+notebooks = [
+    "ipykernel>=7.3.0",
+    "jupyterlab>=4.6.3",
+    "matplotlib>=3.11.2",
+    "nbclient>=0.11.0",
+    "nbformat>=5.11.1",
+    "pandas>=3.0.5",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+fractal_detector = ["py.typed", "*.pyi", "*.c"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+extend-exclude = [".cache", "site", "outputs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "C4", "PIE", "RUF", "S"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+"notebooks/*.ipynb" = ["S101"]
+"notebooks/test_*.py" = ["S101"]
+
+[tool.ty.src]
+include = ["src", "tests", "examples", "benchmarks", "notebooks/*.py"]
+
+[tool.ty.rules]
+possibly-unresolved-reference = "error"
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]
+filterwarnings = ["error", "ignore:.*PydanticDeprecatedSince.*:DeprecationWarning"]
+markers = ["integration: requires optional MLflow", "native: requires the compiled C extension"]
+
+[tool.coverage.run]
+branch = true
+source = ["fractal_detector"]
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]
+
+[tool.cibuildwheel]
+build = "cp314-*"
+skip = ["*-musllinux_*", "*-win32", "*-manylinux_i686"]
+test-requires = ["pytest>=9.1.1", "hypothesis>=6.168.0"]
+test-command = "python -c \"from fractal_detector import native_available; assert native_available()\" && pytest {project}/tests -m 'not integration'"
+
+[tool.cibuildwheel.environment]
+FRACTAL_REQUIRE_NATIVE = "1"

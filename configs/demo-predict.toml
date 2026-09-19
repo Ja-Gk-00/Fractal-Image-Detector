@@ -1,0 +1,13 @@
+task = "predict"
+input_dir = "../outputs/demo/images"
+model = "../outputs/demo/training/model.json"
+output_dir = "../outputs/mlflow-demo"
+batch_size = 16
+workers = 2
+
+[tracking]
+enabled = true
+uri = "http://127.0.0.1:5000"
+experiment = "fractal-demo"
+run_name = "directory-predictions"
+image_logging = "full"

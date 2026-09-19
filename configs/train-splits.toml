@@ -1,0 +1,26 @@
+task = "train"
+output_dir = "../outputs/explicit-training"
+recursive = true
+workers = 4
+batch_size = 64
+
+[data]
+train = ["../data/train.parquet"]
+validation = ["../data/validation.parquet"]
+test = ["../data/test.parquet"]
+
+[features]
+image_size = 128
+scales = [2, 4, 8, 16, 32]
+residual = "gaussian"
+backend = "auto"
+
+[training]
+regularization_c = 1.0
+threshold = 0.5
+
+[tracking]
+enabled = false
+uri = "http://127.0.0.1:5000"
+experiment = "fractal-detection"
+run_name = "explicit-splits"

@@ -1,0 +1,13 @@
+task = "evaluate"
+split = "test"
+model = "../outputs/explicit-training/model.json"
+output_dir = "../outputs/explicit-test"
+workers = 4
+
+[data]
+test = ["../data/test.parquet"]
+
+[tracking]
+enabled = false
+uri = "http://127.0.0.1:5000"
+experiment = "fractal-detection"

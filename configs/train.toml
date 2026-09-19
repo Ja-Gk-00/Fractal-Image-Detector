@@ -1,0 +1,28 @@
+task = "train"
+manifest = "../data/train.csv"
+output_dir = "../outputs/train"
+workers = 4
+
+[features]
+image_size = 128
+scales = [2, 4, 8, 16, 32]
+residual = "gaussian"
+gaussian_sigma = 1.0
+backend = "auto"
+compression = true
+block_size = 8
+stride = 8
+max_domains = 64
+s_clip = 0.95
+transform_ids = [0, 1, 2, 3, 4, 5, 6, 7]
+
+[training]
+test_size = 0.25
+seed = 42
+threshold = 0.5
+regularization_c = 1.0
+
+[tracking]
+enabled = false
+uri = "http://127.0.0.1:5000"
+experiment = "fractal-detection"

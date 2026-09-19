@@ -1,0 +1,15 @@
+task = "predict"
+input_dir = "../data/images"
+model = "../outputs/train/model.json"
+output_dir = "../outputs/directory-predictions"
+recursive = true
+extensions = [".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"]
+batch_size = 64
+workers = 4
+on_error = "skip"
+
+[tracking]
+enabled = false
+uri = "http://127.0.0.1:5000"
+experiment = "fractal-directory-detection"
+image_logging = "batch"

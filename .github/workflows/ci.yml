@@ -1,0 +1,106 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate workflow definitions
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.15"
+          enable-cache: true
+      - run: uv sync --locked --all-extras --group docs --group notebooks
+      - run: uv run --locked ruff check .
+      - run: uv run --locked ruff format --check .
+      - run: uv run --locked ty check
+      - name: Validate executed demonstration notebook
+        run: uv run --locked --group notebooks python notebooks/execute.py --check
+      - name: Test notebook sampling and byte preservation
+        run: uv run --locked pytest notebooks/test_demo_data.py
+      - run: uv run --locked clang-format --dry-run --Werror src/fractal_detector/_native.c
+      - run: uv run --locked mkdocs build --strict
+      - run: uv run --locked pip-audit --local --skip-editable
+      - run: uv build
+      - run: uv run --locked twine check dist/*
+      - name: Test installed wheel outside the source tree
+        run: |
+          uv venv .cache/wheel-test
+          uv pip install --python .cache/wheel-test/bin/python dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$GITHUB_WORKSPACE/.cache/wheel-test/bin/python" -I -c "from fractal_detector import native_available; assert native_available()"
+          "$GITHUB_WORKSPACE/.cache/wheel-test/bin/python" -I "$GITHUB_WORKSPACE/examples/demo.py" --output "$RUNNER_TEMP/fractal-wheel-demo"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: distributions-and-docs
+          path: |
+            dist/
+            site/
+
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      FRACTAL_REQUIRE_NATIVE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.15"
+      - run: uv sync --locked --all-extras
+      - run: uv run --locked python -c "from fractal_detector import native_available; assert native_available()"
+      - run: uv run --locked pytest --cov --cov-report=term-missing --cov-report=xml
+      - run: uv run --locked python examples/demo.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-${{ matrix.os }}
+          path: coverage.xml
+
+  fallback:
+    runs-on: ubuntu-latest
+    env:
+      FRACTAL_BUILD_NATIVE: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.15"
+      - run: uv sync --locked
+      - run: uv run --locked python -c "from fractal_detector import native_available; assert not native_available()"
+      - run: uv run --locked pytest -m 'not integration' --cov
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.15"
+      - run: uv sync --locked
+      - name: Instrument C extension
+        run: uv run --locked python setup.py build_ext --inplace --force
+        env:
+          CFLAGS: -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer
+          LDFLAGS: -fsanitize=address,undefined
+          FRACTAL_REQUIRE_NATIVE: "1"
+      - name: Run native boundary and parity tests
+        run: LD_PRELOAD="$(gcc -print-file-name=libasan.so)" .venv/bin/python -m pytest tests/test_kernels.py
+        env:
+          ASAN_OPTIONS: detect_leaks=0:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1

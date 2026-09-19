@@ -1,0 +1,8 @@
+include README.md CONTRIBUTING.md CHANGELOG.md .clang-format mkdocs.yml .python-version uv.lock
+include MLproject
+recursive-include docs *.md
+recursive-include tests *.py
+recursive-include examples *.py
+recursive-include configs *.toml *.yaml *.json
+recursive-include benchmarks *.py
+recursive-include notebooks *.ipynb *.py *.md

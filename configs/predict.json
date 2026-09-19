@@ -1,0 +1,7 @@
+{
+  "task": "predict",
+  "manifest": "../data/images.csv",
+  "model": "../outputs/train/model.json",
+  "output_dir": "../outputs/predict",
+  "workers": 4
+}

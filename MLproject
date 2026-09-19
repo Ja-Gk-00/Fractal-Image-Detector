@@ -1,0 +1,7 @@
+name: fractal-image-detector
+
+entry_points:
+  main:
+    parameters:
+      config: {type: string, default: configs/train.toml}
+    command: "python -m fractal_detector.project"

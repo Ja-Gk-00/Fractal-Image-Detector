@@ -1,0 +1,14 @@
+task = "predict"
+inputs = ["../data/photos", "../data/generated", "../data/images.parquet"]
+model = "../outputs/train/model.json"
+output_dir = "../outputs/multiple-predictions"
+recursive = true
+batch_size = 64
+workers = 4
+on_error = "skip"
+
+[tracking]
+enabled = false
+uri = "http://127.0.0.1:5000"
+experiment = "fractal-detection"
+image_logging = "batch"

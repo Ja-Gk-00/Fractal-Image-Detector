@@ -1,0 +1,5 @@
+task = "evaluate"
+manifest = "../data/test.csv"
+model = "../outputs/train/model.json"
+output_dir = "../outputs/evaluate"
+workers = 4

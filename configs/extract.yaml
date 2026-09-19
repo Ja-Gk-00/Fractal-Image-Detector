@@ -1,0 +1,10 @@
+task: extract
+manifest: ../data/images.csv
+output_dir: ../outputs/features
+workers: 4
+features:
+  residual: svd
+  svd_rank: 8
+  backend: auto
+tracking:
+  enabled: false
