@@ -11,6 +11,7 @@ from fractal_detector.config import TaskConfig
 from fractal_detector.dataset import ImageFailure, Sample, measure_batch
 from fractal_detector.io import atomic_json
 from fractal_detector.model import Detector
+from fractal_detector.sizing import auto_sized_stream
 from fractal_detector.tracking import TrackingRun
 
 logger = logging.getLogger("fractal_detector")
@@ -27,6 +28,16 @@ def stream_task(
     tracking: TrackingRun,
     detector: Detector | None = None,
 ) -> dict[str, object]:
+    if detector is None and config.features.image_size == "auto":
+        with auto_sized_stream(samples, config.features, on_error=config.on_error) as (
+            resolved,
+            replay,
+        ):
+            atomic_json(output / "resolved-features.json", resolved.model_dump(mode="json"))
+            tracking.log_dict(resolved.model_dump(mode="json"), "resolved-features.json")
+            return stream_task(
+                replay, config.model_copy(update={"features": resolved}), output, tracking
+            )
     features = config.features if detector is None else detector.artifact.feature_config
     tracking.log_parameters(
         {

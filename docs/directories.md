@@ -38,6 +38,11 @@ and reads discovered Parquet shards as well as image files.
 
 ## What makes this suitable for large collections?
 
+- Extraction with omitted or `"auto"` image size first scans all image headers to
+  choose one shared analysis size. Sample records and embedded Parquet bytes are
+  spooled to temporary SQLite storage, then replayed in batches. Allow disk space
+  and a first-pass delay before results appear. Setting `[features] image_size=256`
+  skips this pass. Prediction uses the saved model's size and needs no sizing scan.
 - Directory entries are discovered lazily with `os.scandir`; even a flat folder is not
   converted to a list of all filenames. Traversal order follows the filesystem.
 - At most `batch_size` measurements/predictions are retained at a time. Up to `workers`
@@ -69,6 +74,7 @@ paths across inputs. Exact copies at different paths each receive a prediction.
 | --- | --- |
 | `predictions.jsonl` | One successful prediction per line, including dimensions and explanations |
 | `features.jsonl` | Measurement records for an extraction task |
+| `resolved-features.json` | Concrete feature settings chosen by automatic extraction sizing |
 | `manifest.jsonl` | Input path, optional CSV label/group, and processing index for every attempted image |
 | `errors.jsonl` | Processing index, path, error type and message for each failed image |
 | `summary.json` | Status, attempted/successful/failed counts, elapsed time and MLflow run ID |

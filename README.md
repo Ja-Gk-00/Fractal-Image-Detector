@@ -12,8 +12,8 @@ uv run python examples/demo.py
 ```
 
 The offline demo exercises the entire workflow using procedural textures. Train on
-your own labeled real/synthetic images for actual detection; no pretrained model or
-real-world accuracy claim is included.
+your own labeled real/synthetic images for actual detection. The package does not ship
+a pretrained detector. Local research results are documented with their dataset and evaluation limits.
 
 ```python
 from fractal_detector import extract, read_manifest, train
@@ -34,7 +34,11 @@ and groups are optional. Related images should share a group to prevent split le
 
 - Box-counting and differential fractal dimensions, Rényi dimensions, lacunarity,
   residual entropy, spectral repetition, and range/domain self-similarity.
-- Gaussian or low-rank residuals; C kernels with a NumPy fallback.
+- Gaussian, median and low-rank residuals; C kernels with a NumPy fallback.
+- Full multifractal spectra, sliding lacunarity and PCA rank analysis.
+- Optional SRM Fractal-CNN and median/Gaussian/DnCNN residual Fractal-CNN training.
+- 36 standard/deep TOML method presets, automatic CPU/image sizing, seed 1337,
+  and validation-only parameter search.
 - Supervised training, grouped/stratified holdouts, evaluation, and exact linear-score explanations.
 - TOML/YAML/JSON tasks, structured logs, portable JSON models, optional MLflow tracking.
 - Recursive directory prediction with bounded batches, incremental JSONL output, and error reports.
@@ -45,6 +49,9 @@ and groups are optional. Related images should share a group to prevent split le
 
 ## Guides
 
+- [Ranked methods, TOML presets, and required arguments](docs/method-catalog.md)
+- [Research methods, paired presets, and parameter exploration](docs/research-methods.md)
+- [Measured research results](docs/research-results.md) and [future work](docs/future-work.md)
 - [Executed COCO / AI-GenBench notebook](notebooks/coco_aigenbench_demo.ipynb) and [launch instructions](notebooks/README.md)
 - [Usage and Python API](docs/usage.md)
 - [Python methods: inputs, behavior, and return values](docs/api.md)

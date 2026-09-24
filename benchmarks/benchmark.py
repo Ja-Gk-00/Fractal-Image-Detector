@@ -20,7 +20,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.repeat < 2:
         parser.error("--repeat must be at least 2")
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(1337)
     image = rng.random((128, 128))
     ranges = rng.random((256, 64))
     domains = rng.random((512, 64))
@@ -55,7 +55,7 @@ def main() -> None:
     report = {
         "python": platform.python_version(),
         "platform": platform.platform(),
-        "seed": 42,
+        "seed": 1337,
         "timings": timings,
     }
     atomic_json(args.output, report)

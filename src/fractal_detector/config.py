@@ -15,11 +15,39 @@ class Schema(BaseModel):
 
 
 class FeatureConfig(Schema):
-    image_size: Annotated[int, Field(ge=32, le=1024)] = 128
+    image_size: Annotated[int, Field(ge=32, le=32768)] | Literal["auto"] = "auto"
     scales: tuple[PositiveInt, ...] = (2, 4, 8, 16, 32)
-    residual: Literal["gaussian", "svd"] = "gaussian"
+    residual: Literal["gaussian", "svd", "median"] = "gaussian"
     gaussian_sigma: Annotated[float, Field(gt=0, le=10)] = 1.0
+    median_size: Annotated[int, Field(ge=3, le=15)] = 3
     svd_rank: PositiveInt = 8
+    entropy_bins: Annotated[int, Field(ge=8, le=1024)] = 64
+    families: (
+        tuple[
+            Literal[
+                "dimensions",
+                "gray_surface",
+                "residual_surface",
+                "edge_box",
+                "renyi",
+                "lacunarity",
+                "statistics",
+                "spectral",
+                "compression",
+                "multifractal",
+                "low_correlation",
+            ],
+            ...,
+        ]
+        | None
+    ) = None
+    multifractal: bool = False
+    moment_orders: tuple[float, ...] = (-4.0, -2.0, -1.0, 0.0, 1.0, 2.0, 4.0)
+    mass_floor: Annotated[float, Field(ge=0, le=0.01)] = 0.0
+    lacunarity_mode: Literal["tiled", "sliding"] = "tiled"
+    lacunarity_stride: PositiveInt = 1
+    low_correlation: bool = False
+    pca_ranks: tuple[PositiveInt, ...] = (24, 28, 32)
     edge_quantile: Annotated[float, Field(gt=0, lt=1)] = 0.75
     backend: Literal["auto", "native", "python"] = "auto"
     compression: bool = True
@@ -32,13 +60,42 @@ class FeatureConfig(Schema):
 
     @model_validator(mode="after")
     def validate_geometry(self) -> Self:
+        if self.median_size % 2 == 0:
+            raise ValueError("median_size must be odd")
+        if (
+            len(self.moment_orders) < 3
+            or tuple(sorted(set(self.moment_orders))) != self.moment_orders
+        ):
+            raise ValueError("moment_orders must contain at least three increasing distinct values")
+        if any(abs(q) > 16 for q in self.moment_orders):
+            raise ValueError("moment_orders must be within [-16, 16]")
+        if self.low_correlation and (
+            not self.pca_ranks
+            or tuple(sorted(set(self.pca_ranks))) != self.pca_ranks
+            or (isinstance(self.image_size, int) and max(self.pca_ranks) >= self.image_size)
+        ):
+            raise ValueError("pca_ranks must be increasing, distinct and smaller than image_size")
+        if self.families is not None:
+            if not self.families or len(set(self.families)) != len(self.families):
+                raise ValueError("families must be nonempty and distinct")
+            for family, enabled in (
+                ("compression", self.compression),
+                ("multifractal", self.multifractal),
+                ("low_correlation", self.low_correlation),
+            ):
+                if family in self.families and not enabled:
+                    raise ValueError(f"enable {family} before selecting its family")
         if len(self.scales) < 3 or tuple(sorted(set(self.scales))) != self.scales:
             raise ValueError("scales must contain at least three increasing, distinct sizes")
-        if any(self.image_size % s or s > self.image_size // 2 for s in self.scales):
+        if isinstance(self.image_size, int) and any(
+            self.image_size % s or s > self.image_size // 2 for s in self.scales
+        ):
             raise ValueError("scales must divide image_size and be at most image_size / 2")
-        if self.image_size % self.block_size or 2 * self.block_size > self.image_size:
+        if isinstance(self.image_size, int) and (
+            self.image_size % self.block_size or 2 * self.block_size > self.image_size
+        ):
             raise ValueError("block_size must divide image_size and allow a double-sized domain")
-        if self.svd_rank >= self.image_size:
+        if isinstance(self.image_size, int) and self.svd_rank >= self.image_size:
             raise ValueError("svd_rank must be smaller than image_size")
         if not self.transform_ids or len(set(self.transform_ids)) != len(self.transform_ids):
             raise ValueError("transform_ids must be nonempty and distinct")
@@ -47,9 +104,13 @@ class FeatureConfig(Schema):
         return self
 
 
+class ResolvedFeatureConfig(FeatureConfig):
+    image_size: Annotated[int, Field(ge=32, le=32768)]
+
+
 class TrainingConfig(Schema):
     test_size: Annotated[float, Field(gt=0, lt=1)] = 0.25
-    seed: Annotated[int, Field(ge=0, le=2**32 - 1)] = 42
+    seed: Annotated[int, Field(ge=0, le=2**32 - 1)] = 1337
     regularization_c: Annotated[float, Field(gt=0)] = 1.0
     max_iter: PositiveInt = 2000
     threshold: Annotated[float, Field(gt=0, lt=1)] = 0.5
@@ -63,6 +124,60 @@ class TrackingConfig(Schema):
     run_name: str | None = None
     run_id: str | None = None
     image_logging: Literal["full", "batch"] = "full"
+
+
+class NeuralConfig(Schema):
+    architecture: Literal["srm_fractal", "residual_fractal"] = "srm_fractal"
+    residual: Literal["median", "gaussian", "dncnn"] = "median"
+    image_size: Annotated[int, Field(ge=32, le=32768)] | Literal["auto"] = "auto"
+    channels: Annotated[int, Field(ge=4, le=128)] = 32
+    levels: Annotated[int, Field(ge=1, le=6)] = 3
+    backbone_blocks: Annotated[int, Field(ge=1, le=8)] = 2
+    dncnn_depth: Annotated[int, Field(ge=3, le=25)] = 17
+    dncnn_channels: Annotated[int, Field(ge=4, le=128)] = 64
+    median_size: Annotated[int, Field(ge=3, le=15)] = 3
+    gaussian_sigma: Annotated[float, Field(gt=0, le=10)] = 1.0
+    dropout: Annotated[float, Field(ge=0, lt=1)] = 0.5
+    epochs: Annotated[int, Field(ge=1, le=1000)] = 50
+    batch_size: Annotated[int, Field(ge=2, le=512)] = 16
+    learning_rate: Annotated[float, Field(gt=0, le=1)] = 0.00005
+    denoiser_lr_ratio: Annotated[float, Field(gt=0, le=1)] = 0.1
+    weight_decay: Annotated[float, Field(ge=0, le=1)] = 0.0001
+    label_smoothing: Annotated[float, Field(ge=0, lt=0.5)] = 0.1
+    patience: Annotated[int, Field(ge=1, le=1000)] = 15
+    clip_norm: Annotated[float, Field(gt=0)] = 1.0
+    restart_period: PositiveInt = 10
+    augment_probability: Annotated[float, Field(ge=0, le=1)] = 0.1
+    jpeg_min_quality: Annotated[int, Field(ge=10, le=100)] = 70
+    device: Literal["auto", "cpu", "cuda"] = "auto"
+    mixed_precision: bool = False
+
+    @model_validator(mode="after")
+    def geometry(self) -> Self:
+        if self.median_size % 2 == 0:
+            raise ValueError("median_size must be odd")
+        if self.image_size == "auto":
+            return self
+        if self.image_size % (2**self.levels) or self.image_size // (2**self.levels) < 2:
+            raise ValueError(
+                "image_size must support all fractal levels with at least 2 pixels left"
+            )
+        if self.architecture == "residual_fractal" and self.image_size % (
+            4 ** (self.levels - 1) * 2
+        ):
+            raise ValueError(
+                "residual_fractal image_size must support quadrant splitting and pooling"
+            )
+        if (
+            self.architecture == "residual_fractal"
+            and self.image_size // 4 ** (self.levels - 1) < 4
+        ):
+            raise ValueError("too many residual fractal levels for image_size")
+        return self
+
+
+class ResolvedNeuralConfig(NeuralConfig):
+    image_size: Annotated[int, Field(ge=32, le=32768)]
 
 
 class DataSource(Schema):
@@ -105,13 +220,33 @@ class DataSplits(Schema):
         return self
 
 
+class SearchCandidate(Schema):
+    name: str = Field(min_length=1, max_length=100)
+    features: FeatureConfig
+
+
+class SearchConfig(Schema):
+    candidates: tuple[SearchCandidate, ...]
+    regularization_c: tuple[Annotated[float, Field(gt=0)], ...] = (0.1, 1.0, 10.0)
+
+    @model_validator(mode="after")
+    def bounded(self) -> Self:
+        if not self.candidates or not self.regularization_c:
+            raise ValueError("search requires candidates and regularization values")
+        if len({c.name for c in self.candidates}) != len(self.candidates):
+            raise ValueError("search candidate names must be unique")
+        if len(self.candidates) * len(self.regularization_c) > 100:
+            raise ValueError("limit one search to at most 100 trials")
+        return self
+
+
 def validate_sources(sources: tuple[SourceSpec, ...]) -> None:
     if any(isinstance(s, str) and not s.strip() for s in sources):
         raise ValueError("source paths must not be empty")
 
 
 class TaskConfig(Schema):
-    task: Literal["extract", "train", "evaluate", "predict"]
+    task: Literal["extract", "train", "evaluate", "predict", "search"]
     manifest: str | None = None
     input_dir: str | None = None
     inputs: tuple[SourceSpec, ...] | None = None
@@ -126,11 +261,26 @@ class TaskConfig(Schema):
     features: FeatureConfig = FeatureConfig()
     training: TrainingConfig = TrainingConfig()
     tracking: TrackingConfig = TrackingConfig()
-    workers: Annotated[int, Field(ge=1, le=64)] = 1
+    neural: NeuralConfig | None = None
+    search: SearchConfig | None = None
+    workers: Annotated[int, Field(ge=1, le=1024)] | Literal["auto"] = 1
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
     @model_validator(mode="after")
     def require_model(self) -> Self:
+        if (self.search is not None) != (self.task == "search"):
+            raise ValueError("search configuration is required only for the search task")
+        if self.task == "search" and (
+            self.data is None or not self.data.validation or self.neural is not None
+        ):
+            raise ValueError(
+                "feature search requires explicit train/validation data and no neural configuration"
+            )
+        if self.neural is not None:
+            if self.task == "extract":
+                raise ValueError("neural configurations support train, predict, and evaluate")
+            if self.task == "train" and (self.data is None or not self.data.validation):
+                raise ValueError("neural training requires explicit train and validation splits")
         if self.task in {"predict", "evaluate"} and not self.model:
             raise ValueError("predict/evaluate require a model path")
         if sum(x is not None for x in (self.manifest, self.input_dir, self.inputs, self.data)) != 1:
@@ -142,7 +292,7 @@ class TaskConfig(Schema):
                 raise ValueError("inputs must not be empty")
             validate_sources(self.inputs)
         if self.data is not None:
-            if self.task == "train":
+            if self.task in {"train", "search"}:
                 if not self.data.train or self.split is not None:
                     raise ValueError("training requires data.train and no split selector")
             elif self.split is None or not getattr(self.data, self.split):
@@ -151,7 +301,7 @@ class TaskConfig(Schema):
                 )
         elif self.split is not None:
             raise ValueError("split requires a data configuration")
-        if self.task in {"train", "evaluate"}:
+        if self.task in {"train", "evaluate", "search"}:
             if self.input_dir is not None:
                 raise ValueError("train/evaluate require a labeled manifest")
             if self.on_error != "raise":

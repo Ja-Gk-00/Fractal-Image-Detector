@@ -36,7 +36,9 @@ def test_flat_grayscale_surface_is_two_dimensional(level: float) -> None:
 
 
 def test_random_surface_is_rougher_than_flat() -> None:
-    result = differential_dimension(np.random.default_rng(0).random((256, 256)), (2, 4, 8, 16, 32))
+    result = differential_dimension(
+        np.random.default_rng(1337).random((256, 256)), (2, 4, 8, 16, 32)
+    )
     assert result.value is not None and 2.5 < result.value < 3.1
 
 

@@ -1,9 +1,15 @@
 # COCO / AI-GenBench demonstration
 
 Open [coco_aigenbench_demo.ipynb](coco_aigenbench_demo.ipynb) to read the executed
-walkthrough, including plots and results. It covers all feature families, native and
+walkthrough, including plots and results. It covers the original handcrafted feature families, native and
 NumPy execution, input formats, configuration tasks, training, evaluation, explanations,
 batch prediction, structured logging, and MLflow.
+
+The new multifractal/PCA extensions, learned models and paired presets are documented
+in [research methods](../docs/research-methods.md), with separate reproducible
+[research experiments](../docs/research-results.md). The executed notebook preserves
+seed 1337, matching the current research comparison. The notebook explicitly uses
+128-pixel analysis; method presets choose their image size automatically.
 
 ## See the data results
 

@@ -2,6 +2,9 @@ from fractal_detector.config import (
     DataSource,
     DataSplits,
     FeatureConfig,
+    NeuralConfig,
+    SearchCandidate,
+    SearchConfig,
     TaskConfig,
     TrackingConfig,
     TrainingConfig,
@@ -29,8 +32,11 @@ from fractal_detector.model import (
     train,
     train_splits,
 )
+from fractal_detector.multifractal import multifractal_spectrum, sliding_lacunarity
+from fractal_detector.presets import method_preset, write_method_configs
 from fractal_detector.records import DimensionEstimate, FeatureResult, Prediction
 from fractal_detector.runner import run_config, run_task
+from fractal_detector.search import SearchResult, search_features
 from fractal_detector.sources import iter_manifest, iter_sources
 from fractal_detector.tracking import TrackingRun
 
@@ -44,8 +50,12 @@ __all__ = [
     "FeatureConfig",
     "FeatureResult",
     "ImageFailure",
+    "NeuralConfig",
     "Prediction",
     "Sample",
+    "SearchCandidate",
+    "SearchConfig",
+    "SearchResult",
     "SplitTrainingResult",
     "TaskConfig",
     "TrackingConfig",
@@ -65,10 +75,15 @@ __all__ = [
     "iter_manifest",
     "iter_sources",
     "load_config",
+    "method_preset",
+    "multifractal_spectrum",
     "native_available",
     "read_manifest",
     "run_config",
     "run_task",
+    "search_features",
+    "sliding_lacunarity",
     "train",
     "train_splits",
+    "write_method_configs",
 ]

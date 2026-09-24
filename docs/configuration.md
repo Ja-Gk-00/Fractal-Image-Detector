@@ -1,5 +1,11 @@
 # Make your own configuration
 
+Default random seed: **1337**. Omit `features.image_size` and `neural.image_size`
+for automatic dataset sizing, or set an integer to override it. Training resolves
+sizes from training images only; prediction uses the saved model's sizes. See the
+[ranked method catalog](method-catalog.md) for the TOML presets, required fields,
+and exact sizing rules.
+
 A configuration describes **one task**. Save it as TOML, YAML, or JSON and run:
 
 ```console
@@ -77,7 +83,7 @@ backend = "auto"
 
 [training]
 test_size = 0.25
-seed = 42
+seed = 1337
 regularization_c = 1.0
 threshold = 0.5
 ```
@@ -141,3 +147,56 @@ from fractal_detector import load_config
 config = load_config("configs/my-task.toml")
 print(config)
 ```
+
+## Research configuration
+
+See [the preset guide](research-methods.md) for all 36 standard/deep files. Set
+`workers="auto"` to use the CPU count available to the process. Explicit worker counts
+remain supported. Numeric libraries use one BLAS thread per image extraction worker.
+
+New `[features]` settings:
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `residual` | `"gaussian"` | Also accepts `"median"` and `"svd"` |
+| `median_size` | 3 | Odd median window in 3–15 |
+| `entropy_bins` | 64 | Histogram bins, 8–1024 |
+| `families` | omitted | Select feature families; omit to retain all enabled families |
+| `multifractal` | false | Append the full-spectrum feature vector |
+| `moment_orders` | `[-4,-2,-1,0,1,2,4]` | At least three increasing distinct orders in −16…16 |
+| `mass_floor` | 0 | Optional floor on occupied normalized box probabilities, at most 0.01 |
+| `lacunarity_mode` | `"tiled"` | `"sliding"` uses overlapping valid windows |
+| `lacunarity_stride` | 1 | Positive sliding-window stride |
+| `low_correlation` | false | Append PCA-rank measurements |
+| `pca_ranks` | `[24,28,32]` | Increasing distinct positive ranks below image size when enabled |
+
+`families` accepts `dimensions` (all three estimators), `gray_surface`,
+`residual_surface`, `edge_box`, `renyi`, `lacunarity`, `statistics`, `spectral`,
+`compression`, `multifractal`, and `low_correlation`. Enable the corresponding boolean
+before selecting compression, multifractal or low-correlation features. Dimensions
+and diagnostics are still logged even when a family is excluded from the classifier.
+
+Add `[neural]` to train an optional learned model. Neural training requires explicit
+`data.train` and `data.validation`. Choose `architecture="srm_fractal"` or
+`"residual_fractal"`; the latter accepts residual `median`, `gaussian`, or `dncnn`.
+The presets expose geometry, channels, backbone/DnCNN depth, optimizer, augmentation,
+early stopping and device settings. `TrainingConfig` seed, threshold and class weights
+also apply; logistic C/max_iter do not control neural training.
+
+For feature search use `task="search"`, explicit train/validation splits and
+`[search] regularization_c=[0.1,1.0,10.0]`. Add candidates with TOML array tables:
+
+```toml
+[[search.candidates]]
+name = "gaussian-256"
+[search.candidates.features]
+image_size = 256
+scales = [2, 4, 8, 16, 32, 64]
+compression = false
+multifractal = true
+```
+
+The search ignores `data.test` entirely, including its file paths. Its selected model
+contains validation provenance; use separate unseen inputs for subsequent evaluation.
+The runnable `examples/research_search.py` compares ten feature configurations and
+three C values using a notebook sample receipt.

@@ -173,7 +173,7 @@ def materialize(records: list[Record], destination: Path) -> list[Record]:
 
 
 def prepare_sample(
-    data_root: Path, output_root: Path, *, per_class: int = 500, seed: int = 42
+    data_root: Path, output_root: Path, *, per_class: int = 500, seed: int = 1337
 ) -> dict:
     data_root = data_root.resolve()
     records, counts = inventory(data_root)

@@ -1,0 +1,44 @@
+task = "train"
+workers = "auto"
+output_dir = "../../outputs/ranked/gaussian_sigma_0_6"
+
+[data]
+train = ["../../data-splits/train.csv"]
+validation = ["../../data-splits/validation.parquet"]
+
+[features]
+image_size = 128
+scales = [2, 4, 8, 16, 32]
+residual = "gaussian"
+gaussian_sigma = 0.6
+median_size = 3
+svd_rank = 8
+entropy_bins = 64
+multifractal = true
+moment_orders = [-4.0, -2.0, -1.0, 0.0, 1.0, 2.0, 4.0]
+mass_floor = 0.0
+lacunarity_mode = "tiled"
+lacunarity_stride = 1
+low_correlation = false
+pca_ranks = [24, 28, 32]
+edge_quantile = 0.75
+backend = "auto"
+compression = false
+block_size = 8
+stride = 8
+max_domains = 64
+s_clip = 0.95
+transform_ids = [0, 1, 2, 3, 4, 5, 6, 7]
+max_input_pixels = 40000000
+
+[training]
+seed = 1337
+regularization_c = 10.0
+max_iter = 5000
+
+[tracking]
+enabled = false
+uri = "http://127.0.0.1:5000"
+experiment = "ranked-methods"
+run_name = "gaussian_sigma_0_6"
+image_logging = "batch"

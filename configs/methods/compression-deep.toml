@@ -1,0 +1,27 @@
+task = "train"
+workers = "auto"
+batch_size = 64
+output_dir = "../../outputs/methods/compression-deep"
+
+[data]
+train = ["../../data-splits/train.csv"]
+validation = ["../../data-splits/validation.parquet"]
+
+[tracking]
+enabled = false
+uri = "http://127.0.0.1:5000"
+experiment = "fractal-methods"
+run_name = "compression-deep"
+image_logging = "batch"
+
+[features]
+scales = [2, 4, 8, 16, 32, 64]
+compression = true
+families = ["compression"]
+max_domains = 256
+stride = 4
+
+[training]
+regularization_c = 0.1
+seed = 1337
+max_iter = 5000

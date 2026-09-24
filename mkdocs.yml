@@ -9,6 +9,10 @@ nav:
   - MLflow tutorial: mlflow.md
   - Large image directories: directories.md
   - How the methods work: methods.md
+  - Research methods and presets: research-methods.md
+  - Ranked methods and how to run them: method-catalog.md
+  - Research validation results: research-results.md
+  - Future work: future-work.md
   - Technology stack: tech-stack.md
   - Development: development.md
   - Literature: literature.md

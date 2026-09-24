@@ -6,10 +6,13 @@ from typing import Literal
 
 from PIL import Image
 from pydantic import Field
+from threadpoolctl import threadpool_limits
 
 from fractal_detector.config import IMAGE_EXTENSIONS, FeatureConfig, Schema, validate_extensions
 from fractal_detector.features import extract
+from fractal_detector.parallel import Workers, resolve_workers
 from fractal_detector.records import FeatureResult
+from fractal_detector.sizing import largest_side, resolve_dataset_features, resolve_features
 
 
 class Sample(Schema):
@@ -63,10 +66,15 @@ def measure_batch(
     samples: Sequence[Sample],
     config: FeatureConfig,
     *,
-    workers: int = 1,
+    workers: Workers = 1,
 ) -> list[FeatureResult | ImageFailure]:
-    if isinstance(workers, bool) or not isinstance(workers, int) or not 1 <= workers <= 64:
-        raise ValueError("workers must be in 1..64")
+    workers = resolve_workers(workers)
+    config = resolve_features(
+        config,
+        largest_side(samples, config.max_input_pixels, on_error="skip")
+        if config.image_size == "auto"
+        else 0,
+    )
 
     def measure(sample: Sample) -> FeatureResult | ImageFailure:
         try:
@@ -74,7 +82,7 @@ def measure_batch(
         except (ValueError, OSError, Image.DecompressionBombError) as exc:
             return ImageFailure(path=sample.path, error_type=type(exc).__name__, message=str(exc))
 
-    with ThreadPoolExecutor(max_workers=workers) as pool:
+    with threadpool_limits(limits=1), ThreadPoolExecutor(max_workers=workers) as pool:
         return list(pool.map(measure, samples, buffersize=2 * workers))
 
 
@@ -98,11 +106,11 @@ def extract_sample(sample: Sample, config: FeatureConfig) -> FeatureResult:
 
 
 def extract_dataset(
-    samples: Sequence[Sample], config: FeatureConfig | None = None, *, workers: int = 1
+    samples: Sequence[Sample], config: FeatureConfig | None = None, *, workers: Workers = 1
 ) -> list[FeatureResult]:
-    if isinstance(workers, bool) or not 1 <= workers <= 64:
-        raise ValueError("workers must be in 1..64")
+    workers = resolve_workers(workers)
     config = config or FeatureConfig()
+    config = resolve_dataset_features(config, samples)
 
     def measure(sample: Sample) -> FeatureResult:
         try:
@@ -110,5 +118,5 @@ def extract_dataset(
         except (ValueError, OSError) as exc:
             raise ValueError(f"cannot measure {sample.path}: {exc}") from exc
 
-    with ThreadPoolExecutor(max_workers=workers) as pool:
+    with threadpool_limits(limits=1), ThreadPoolExecutor(max_workers=workers) as pool:
         return list(pool.map(measure, samples, buffersize=2 * workers))

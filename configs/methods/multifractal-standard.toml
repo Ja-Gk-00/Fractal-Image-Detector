@@ -1,0 +1,27 @@
+task = "train"
+workers = "auto"
+batch_size = 64
+output_dir = "../../outputs/methods/multifractal-standard"
+
+[data]
+train = ["../../data-splits/train.csv"]
+validation = ["../../data-splits/validation.parquet"]
+
+[tracking]
+enabled = false
+uri = "http://127.0.0.1:5000"
+experiment = "fractal-methods"
+run_name = "multifractal-standard"
+image_logging = "batch"
+
+[features]
+scales = [2, 4, 8, 16, 32]
+compression = false
+families = ["multifractal"]
+multifractal = true
+moment_orders = [-4.0, -2.0, -1.0, 0.0, 1.0, 2.0, 4.0]
+
+[training]
+regularization_c = 1.0
+seed = 1337
+max_iter = 5000

@@ -18,7 +18,7 @@ transform_ids = [0, 1, 2, 3, 4, 5, 6, 7]
 
 [training]
 test_size = 0.25
-seed = 42
+seed = 1337
 threshold = 0.5
 regularization_c = 1.0
 

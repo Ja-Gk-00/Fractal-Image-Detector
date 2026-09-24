@@ -1,8 +1,17 @@
 # Technology stack
 
-This is a CPU-based Python package. Python connects the workflow, C accelerates two
-expensive operations, and established numerical libraries handle the remaining mathematics.
-It runs locally on CPU, with an optional MLflow server for experiment tracking.
+Python connects the workflow, C accelerates two expensive operations, and established
+numerical libraries handle the remaining mathematics. Handcrafted methods run on CPU;
+optional PyTorch networks can train and predict on CPU or CUDA. MLflow tracks both.
+
+The `neural` extra adds PyTorch 2.14 and safetensors 0.8. PyTorch supplies compiled
+convolutions, FFT, automatic differentiation, optimizers and CUDA execution. Safetensors
+encodes tensor weights without executing Python objects; its bytes and a checksum are
+embedded in the neural JSON artifact. No torchvision or downloaded checkpoint is required.
+`threadpoolctl` limits BLAS threads inside parallel image extraction so that 24 image
+workers do not each create 24 numerical threads. SciPy's `logsumexp` stabilizes
+multifractal partition sums; NumPy summed-area tables compute sliding-window masses
+without Python pixel loops.
 
 ## Runtime: what processes an image?
 

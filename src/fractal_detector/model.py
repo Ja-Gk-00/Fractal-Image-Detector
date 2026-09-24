@@ -28,6 +28,7 @@ from sklearn.preprocessing import StandardScaler
 from fractal_detector.config import (
     IMAGE_EXTENSIONS,
     FeatureConfig,
+    ResolvedFeatureConfig,
     Schema,
     SourceSpec,
     TrainingConfig,
@@ -41,7 +42,9 @@ from fractal_detector.dataset import (
 )
 from fractal_detector.features import extract, feature_names
 from fractal_detector.io import FloatArray, ImageInput, atomic_json
+from fractal_detector.parallel import Workers
 from fractal_detector.records import Contribution, FeatureResult, Prediction
+from fractal_detector.sizing import resolve_dataset_features, resolve_features
 
 logger = logging.getLogger("fractal_detector")
 
@@ -49,7 +52,7 @@ logger = logging.getLogger("fractal_detector")
 class ModelArtifact(Schema):
     schema_version: Literal[1] = 1
     package_version: Literal["0.1.0"] = "0.1.0"
-    feature_config: FeatureConfig
+    feature_config: ResolvedFeatureConfig
     training_config: TrainingConfig
     feature_names: tuple[str, ...]
     means: tuple[float, ...]
@@ -59,6 +62,8 @@ class ModelArtifact(Schema):
     threshold: Annotated[float, Field(gt=0, lt=1)]
     training_ids: tuple[str, ...]
     training_groups: tuple[str, ...]
+    selection_ids: tuple[str, ...] = ()
+    selection_groups: tuple[str, ...] = ()
     training_digest: str
     created_at: str
 
@@ -76,6 +81,7 @@ class ModelArtifact(Schema):
 def _matrix(results: Sequence[FeatureResult], config: FeatureConfig) -> FloatArray:
     if not results:
         raise ValueError("at least one image is required")
+    config = resolve_features(config, results[0].processed_shape[0])
     names = feature_names(config)
     expected = config.model_dump(mode="json", exclude={"backend", "max_input_pixels"})
     for result in results:
@@ -84,9 +90,9 @@ def _matrix(results: Sequence[FeatureResult], config: FeatureConfig) -> FloatArr
         stored = result.diagnostics.get("config")
         if not isinstance(stored, dict):
             raise ValueError("missing feature extraction configuration")
-        actual = dict(stored)
-        actual.pop("backend", None)
-        actual.pop("max_input_pixels", None)
+        actual = FeatureConfig.model_validate_json(json.dumps(stored)).model_dump(
+            mode="json", exclude={"backend", "max_input_pixels"}
+        )
         if actual != expected:
             raise ValueError("feature extraction configuration differs from the model")
     return np.asarray(
@@ -162,7 +168,7 @@ class Detector:
     def predict(self, image: ImageInput) -> Prediction:
         return self.predict_features(extract(image, self.artifact.feature_config))
 
-    def predict_many(self, samples: Sequence[Sample], *, workers: int = 1) -> list[Prediction]:
+    def predict_many(self, samples: Sequence[Sample], *, workers: Workers = 1) -> list[Prediction]:
         return [
             self.predict_features(r)
             for r in extract_dataset(samples, self.artifact.feature_config, workers=workers)
@@ -172,7 +178,7 @@ class Detector:
         self,
         samples: Iterable[Sample],
         *,
-        workers: int = 1,
+        workers: Workers = 1,
         batch_size: int = 64,
         on_error: Literal["raise", "skip"] = "raise",
     ) -> Iterator[Prediction | ImageFailure]:
@@ -199,7 +205,7 @@ class Detector:
         *,
         recursive: bool = True,
         extensions: tuple[str, ...] = IMAGE_EXTENSIONS,
-        workers: int = 1,
+        workers: Workers = 1,
         batch_size: int = 64,
         on_error: Literal["raise", "skip"] = "raise",
     ) -> Iterator[Prediction | ImageFailure]:
@@ -217,7 +223,7 @@ class Detector:
         base_dir: str | Path = ".",
         recursive: bool = True,
         extensions: tuple[str, ...] = IMAGE_EXTENSIONS,
-        workers: int = 1,
+        workers: Workers = 1,
         batch_size: int = 64,
         on_error: Literal["raise", "skip"] = "raise",
     ) -> Iterator[Prediction | ImageFailure]:
@@ -251,9 +257,13 @@ def evaluate_features(
         raise ValueError("sample and feature lengths differ")
     labels = _labels(samples)
     _check_unique(results)
-    if set(detector.artifact.training_ids) & {r.image_id for r in results}:
+    if set(detector.artifact.training_ids + detector.artifact.selection_ids) & {
+        r.image_id for r in results
+    }:
         raise ValueError("evaluation contains an image used for fitting")
-    if set(detector.artifact.training_groups) & {s.group for s in samples if s.group is not None}:
+    if set(detector.artifact.training_groups + detector.artifact.selection_groups) & {
+        s.group for s in samples if s.group is not None
+    }:
         raise ValueError("evaluation contains a group used for fitting")
     predictions = tuple(detector.predict_features(result) for result in results)
     p = np.asarray([pred.synthetic_probability for pred in predictions])
@@ -275,7 +285,7 @@ def evaluate_features(
     )
 
 
-def evaluate(detector: Detector, samples: Sequence[Sample], *, workers: int = 1) -> Evaluation:
+def evaluate(detector: Detector, samples: Sequence[Sample], *, workers: Workers = 1) -> Evaluation:
     return evaluate_features(
         detector,
         samples,
@@ -299,6 +309,9 @@ def fit_features(
     config = training_config or TrainingConfig()
     if len(samples) != len(results):
         raise ValueError("sample and feature lengths differ")
+    feature_config = resolve_features(
+        feature_config, results[0].processed_shape[0] if results else 0
+    )
     labels = _labels(samples)
     _check_unique(results)
     matrix = _matrix(results, feature_config)
@@ -370,9 +383,10 @@ def train_splits(
     feature_config: FeatureConfig | None = None,
     training_config: TrainingConfig | None = None,
     *,
-    workers: int = 1,
+    workers: Workers = 1,
 ) -> SplitTrainingResult:
     config = feature_config or FeatureConfig()
+    config = resolve_dataset_features(config, train_samples)
     splits = {"train": train_samples}
     if validation_samples is not None:
         splits["validation"] = validation_samples
@@ -424,7 +438,7 @@ def train(
     feature_config: FeatureConfig | None = None,
     training_config: TrainingConfig | None = None,
     *,
-    workers: int = 1,
+    workers: Workers = 1,
 ) -> TrainingResult:
     features = feature_config or FeatureConfig()
     config = training_config or TrainingConfig()
@@ -456,6 +470,7 @@ def train(
         train_idx, test_idx = train_test_split(
             indices, test_size=config.test_size, random_state=config.seed, stratify=labels
         )
+    features = resolve_dataset_features(features, [samples[i] for i in train_idx])
     results = extract_dataset(samples, features, workers=workers)
     _check_unique(results)
     fitted = fit_features(

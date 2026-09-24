@@ -1,0 +1,33 @@
+task = "train"
+workers = "auto"
+batch_size = 64
+output_dir = "../../outputs/methods/low_correlation-deep"
+
+[data]
+train = ["../../data-splits/train.csv"]
+validation = ["../../data-splits/validation.parquet"]
+
+[tracking]
+enabled = false
+uri = "http://127.0.0.1:5000"
+experiment = "fractal-methods"
+run_name = "low_correlation-deep"
+image_logging = "batch"
+
+[features]
+scales = [2, 4, 8, 16, 32, 64]
+compression = false
+families = ["low_correlation"]
+multifractal = true
+moment_orders = [-4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0]
+low_correlation = true
+pca_ranks = [24, 26, 28, 30, 32]
+residual = "svd"
+svd_rank = 28
+lacunarity_mode = "sliding"
+lacunarity_stride = 1
+
+[training]
+regularization_c = 0.1
+seed = 1337
+max_iter = 5000

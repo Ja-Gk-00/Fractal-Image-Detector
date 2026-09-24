@@ -16,7 +16,7 @@ def config() -> FeatureConfig:
 
 @pytest.fixture
 def dataset(tmp_path: Path) -> tuple[list[Sample], Path]:
-    rng = np.random.default_rng(401)
+    rng = np.random.default_rng(1337)
     samples = []
     manifest = tmp_path / "images.csv"
     with manifest.open("w", newline="", encoding="utf-8") as stream:

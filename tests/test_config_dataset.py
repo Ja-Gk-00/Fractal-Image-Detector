@@ -34,7 +34,7 @@ from fractal_detector import (
 )
 def test_reject_invalid_feature_configuration(values: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
-        FeatureConfig.model_validate(values)
+        FeatureConfig.model_validate({"image_size": 128, **values})
 
 
 @pytest.mark.parametrize(

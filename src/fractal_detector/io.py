@@ -36,6 +36,11 @@ def atomic_json(path: str | Path, data: object) -> None:
 def load_image(
     image: ImageInput, config: FeatureConfig
 ) -> tuple[FloatArray, str, tuple[int, int], list[str]]:
+    from fractal_detector.sizing import image_side, resolve_features
+
+    config = resolve_features(
+        config, image_side(image, config.max_input_pixels) if config.image_size == "auto" else 0
+    )
     notes: list[str] = []
     if isinstance(image, (str, Path, bytes)):
         with Image.open(BytesIO(image) if isinstance(image, bytes) else image) as opened:

@@ -121,6 +121,33 @@ the complete parameter, for example `-P "config=D:/my experiments/task.toml"`.
 See the official [MLflow Projects documentation](https://mlflow.org/docs/latest/ml/projects/)
 for other launch environments.
 
+## Research methods through MLflow
+
+1. Install the optional packages: `uv sync --locked --extra neural --extra mlflow`.
+2. Start the server as described above and keep it running.
+3. Generate presets with `uv run python examples/method_configs.py --train D:/data/train.csv --validation D:/data/validation.parquet`.
+4. In the chosen TOML preset, set `enabled = true` under `[tracking]`. Keep
+   `tracking.uri` as `http://127.0.0.1:5000` and give the run a descriptive name.
+5. Run `uv run --extra neural --extra mlflow fractal-detector run configs/methods/dncnn_fractal-standard.toml`.
+6. Open `http://127.0.0.1:5000` and select **fractal-methods**.
+
+Neural runs log epoch training/validation loss, learning rate, selected epoch, split
+reports, all fractal measurement records and a portable model. The model uses the
+lowest validation-loss checkpoint; test data never influences that choice. Handcrafted
+methods log their selected feature settings and measurements using the same tracking
+configuration. `task="search"` logs a trial table and validation metrics indexed by
+trial number; it does not read the test split.
+
+MLflow Projects also works without a new launcher:
+
+```console
+uv run --extra neural --extra mlflow mlflow run . --env-manager=local -P config=configs/methods/srm_fractal-standard.toml
+```
+
+Set `MLFLOW_TRACKING_URI` as in the earlier Projects example. Keep `--extra neural`
+in uv commands so environment synchronization retains PyTorch. The PyTorch build
+determines CPU/CUDA availability; MLflow itself does not provision a GPU.
+
 ## Quick fixes
 
 | Problem | What to do |

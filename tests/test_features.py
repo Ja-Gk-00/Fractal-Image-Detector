@@ -11,7 +11,7 @@ from fractal_detector.io import atomic_json, load_image
 
 
 def test_features_are_finite_and_serializable(config: FeatureConfig) -> None:
-    result = extract(np.random.default_rng(2).random((32, 32, 3)), config)
+    result = extract(np.random.default_rng(1337).random((32, 32, 3)), config)
     assert tuple(result.features) == feature_names(config)
     assert all(np.isfinite(v) for v in result.features.values())
     assert result.dimensions["gray"].value is not None

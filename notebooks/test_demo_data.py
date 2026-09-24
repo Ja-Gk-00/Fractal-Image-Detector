@@ -17,8 +17,8 @@ def test_balanced_selection_keeps_related_records_together() -> None:
         records.append(
             Record("fake.parquet", index, 1, f"generator-{index % 4}", f"fake-{index}", (paired,))
         )
-    first = select_balanced(records, 200, 42)
-    assert first == select_balanced(records, 200, 42)
+    first = select_balanced(records, 200, 1337)
+    assert first == select_balanced(records, 200, 1337)
     assert first != select_balanced(records, 200, 43)
     assert Counter((r.split, r.label) for r in first) == {
         ("train", 0): 120,
@@ -43,12 +43,12 @@ def test_balanced_selection_keeps_related_records_together() -> None:
 @pytest.mark.parametrize("size", [0, 9, 11])
 def test_invalid_balanced_size(size: int) -> None:
     with pytest.raises(ValueError, match="multiple of 5"):
-        select_balanced([], size, 42)
+        select_balanced([], size, 1337)
 
 
 def test_insufficient_pool_is_explicit() -> None:
     with pytest.raises(ValueError, match="Not enough"):
-        select_balanced([], 10, 42)
+        select_balanced([], 10, 1337)
 
 
 def test_materialize_preserves_original_bytes_and_parquet_row(tmp_path: Path) -> None:

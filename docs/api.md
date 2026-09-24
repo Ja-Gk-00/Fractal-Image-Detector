@@ -98,3 +98,42 @@ image indices and artifact names. Task execution does this automatically. Task-l
 `image_logging="batch"` uses JSONL shards and mean metrics through the generic logging
 methods; `log_features` and `log_predictions` always log individual images.
 Follow the [MLflow tutorial](mlflow.md) to launch the server and inspect these records.
+
+## Research extensions
+
+`FeatureConfig()` and `NeuralConfig()` now default to `image_size="auto"`;
+`TrainingConfig()` defaults to seed 1337. Single-image extraction resolves its own
+size; `extract_dataset` resolves a shared size. Training resolves only from fitting
+data, while saved models keep concrete sizes for inference. See
+[automatic sizing](method-catalog.md#automatic-image-sizing) for alignment and streaming behavior.
+
+All earlier calls and default feature ordering remain supported. These additions are
+described mathematically in [research methods](research-methods.md).
+
+| API | Inputs and behavior | Return |
+| --- | --- | --- |
+| `multifractal_spectrum(mass, scales, orders, backend="auto", mass_floor=0)` | Nonnegative square mass array; fits partition scaling and computes alpha/f(alpha). Zero masses are excluded; diagnostics mark an entirely empty input. | Feature dictionary and full diagnostic dictionary |
+| `sliding_lacunarity(mass, scales, stride=1)` | Uses summed-area tables over all valid windows, with no padding. | One lacunarity per scale |
+| `method_preset(method, deep=False)` | One of the 18 names in `presets.METHODS`. | Feature/training/neural settings dictionary |
+| `write_method_configs(destination, train=..., validation=..., test=None)` | Writes and validates 36 paired TOML task files. | List of written paths |
+| `search_features(train_samples, validation_samples, SearchConfig(...), training_config=None, workers="auto")` | Fits only on training data; selects by validation AUC, then log loss, then smaller feature count. | `SearchResult`: detector, trial records, best index, report |
+| `SearchCandidate(name=..., features=FeatureConfig(...))` | Names a complete feature configuration for search. | Validated candidate |
+| `SearchConfig(candidates=(...), regularization_c=(0.1, 1.0, 10.0))` | At most 100 candidate/regularization pairs. | Validated search configuration |
+
+The following imports come from `fractal_detector.neural`, which requires the `neural`
+extra. `NeuralConfig` itself is available from the package root without PyTorch.
+
+| API | Behavior | Return |
+| --- | --- | --- |
+| `train_neural(train_samples, validation_samples, test_samples=None, feature_config=None, training_config=None, neural_config=None, workers="auto", epoch_callback=None)` | Checks decoded-image and group separation, trains the configured network and restores the best validation-loss checkpoint. Optional callback receives `(metrics, epoch)` after each epoch. | `NeuralTrainingResult`: detector, evaluation reports, measurements by split |
+| `NeuralDetector.load(path, device="auto")` / `save(path)` | Validates metadata, checksum and tensor shapes; persists safetensors inside a JSON artifact. | Detector / `None` |
+| `detector.predict(image)` | Network prediction plus independent handcrafted measurements and final-head contributions. | Existing `Prediction` type |
+| `detector.predict_many(samples, workers="auto")` | Batched prediction, raising on unreadable input. | List of predictions |
+| `detector.iter_predict(samples, workers="auto", batch_size=None, on_error="raise")` | Bounded batches from any iterable; `skip` yields ordered `ImageFailure` records. | Iterator of predictions/errors |
+| `evaluate_neural(detector, samples, workers="auto", allow_validation=False)` | Computes the existing classification metrics; rejects fitting and model-selection overlap by default. `allow_validation=True` permits the stored validation data for an explicitly labeled validation report only. | `Evaluation` |
+
+Use `detector.iter_predict(iter_sources(("images", "images.parquet")))` for recursive,
+multiple-source neural prediction. Neural detectors do not offer `predict_features`:
+the image tensor, not a handcrafted feature record, is the network input. Existing
+`Detector.load` remains the schema-1 linear-model loader; use `NeuralDetector.load`
+for schema-2 neural models. The CLI selects the neural path when `[neural]` is present.

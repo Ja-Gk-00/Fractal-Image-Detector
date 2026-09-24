@@ -16,6 +16,7 @@ dependencies = [
   "pydantic>=2.13.5",
   "pyyaml>=6.0.3",
   "pyarrow>=25.0.1",
+  "threadpoolctl>=3.6.0",
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -27,6 +28,7 @@ classifiers = [
 
 [project.optional-dependencies]
 mlflow = ["mlflow>=3.16.0"]
+neural = ["torch>=2.14.0", "safetensors>=0.8.0"]
 
 [project.scripts]
 fractal-detector = "fractal_detector.cli:main"

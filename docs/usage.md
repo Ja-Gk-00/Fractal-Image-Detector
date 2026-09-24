@@ -104,7 +104,7 @@ samples = read_manifest("train.csv", require_labels=True)
 trained = train(
     samples,
     FeatureConfig(residual="gaussian"),
-    TrainingConfig(seed=42, test_size=0.25),
+    TrainingConfig(seed=1337, test_size=0.25),
     workers=4,
 )
 print(trained.evaluation.metrics)
@@ -163,7 +163,7 @@ to `base_dir`. MLflow URIs are passed unchanged and are not resolved as file pat
 | `split` | none | Select `train`, `validation`, or `test` for a non-training task using `data` |
 | `output_dir` | `outputs` | Output directory; use a different directory for each task |
 | `model` | none | JSON model path required for prediction/evaluation |
-| `workers` | 1 | Number of image extraction threads, 1–64 |
+| `workers` | 1 | Image extraction threads, 1–1024, or `"auto"` for the available CPU count |
 | `batch_size` | 64 | Maximum images retained per extraction/prediction batch, 1–4096 |
 | `recursive` | true | Include input subdirectories |
 | `extensions` | common image formats | Allowed suffixes, matched without case sensitivity |
@@ -173,7 +173,7 @@ to `base_dir`. MLflow URIs are passed unchanged and are not resolved as file pat
 | `tracking` | disabled | MLflow settings |
 | `log_level` | `INFO` | JSON log level |
 
-Training settings: `seed=42`, `test_size=0.25`, `regularization_c=1.0`, `max_iter=2000`,
+Training settings: `seed=1337`, `test_size=0.25`, `regularization_c=1.0`, `max_iter=2000`,
 `threshold=0.5`, `class_weight=None`. `class_weight="balanced"` adjusts fitting weights
 for class imbalance; this also changes the interpretation of uncalibrated probabilities.
 Nonconverged fitting fails rather than saving a partially converged model.

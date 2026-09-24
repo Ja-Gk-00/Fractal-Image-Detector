@@ -1,7 +1,8 @@
 # How the methods work
 
-Protocol schema: **1**. All models store their extraction configuration and feature order.
-Changes to feature definitions require a schema increment and retraining.
+Handcrafted measurements and linear models use schema **1**; optional neural artifacts
+use schema **2**. Linear models store the extraction configuration and feature order.
+Existing feature definitions remain unchanged; new feature families are opt-in.
 For callable functions and their return values, see the [Python method reference](api.md).
 
 ## The main idea
@@ -277,9 +278,9 @@ ordered `[real, synthetic]`. Probabilities are not separately calibrated. See
 
 | Feature setting | Default | Constraints |
 | --- | --- | --- |
-| `image_size` | 128 | 32–1024; square analysis resolution |
+| `image_size` | `"auto"` | Largest source dimension, aligned to estimator geometry; explicit integers 32–32768 override it |
 | `scales` | `[2,4,8,16,32]` | At least three divisors of the analysis size |
-| `residual` | `gaussian` | `gaussian` or `svd` |
+| `residual` | `gaussian` | `gaussian`, `median`, or `svd` |
 | `gaussian_sigma` | 1.0 | `(0,10]` |
 | `svd_rank` | 8 | Positive, smaller than analysis size |
 | `edge_quantile` | 0.75 | `(0,1)` |
@@ -304,3 +305,11 @@ controls search size; use the supplied benchmark to choose a budget. Thread work
 parallelize images. For SVD-heavy batches, limit BLAS threads (`OMP_NUM_THREADS=1`,
 `OPENBLAS_NUM_THREADS=1`, `MKL_NUM_THREADS=1`) to avoid oversubscription. Floating-point
 roundoff can vary across platforms; nearly tied domain matches may differ.
+
+## Extended estimators and learned methods
+
+The defaults described above still produce the same 21 features. Opt-in full
+multifractal spectra, sliding-window lacunarity, PCA rank analysis and both learned
+Fractal-CNN architectures are detailed in [research methods](research-methods.md).
+That guide maps equations to code, lists every method's paired presets, and explains
+which paper details are reproduced versus deliberately configurable.

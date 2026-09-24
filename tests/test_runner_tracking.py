@@ -191,7 +191,7 @@ def test_real_mlflow_tracking_lifecycle(
     assert "gray_dimension" in stored.data.metrics
     assert "holdout.roc_auc" in stored.data.metrics
     assert stored.data.params["features.image_size"] == "32"
-    assert stored.data.params["training.seed"] == "42"
+    assert stored.data.params["training.seed"] == "1337"
     assert mlflow.get_tracking_uri() == previous_uri
     assert os.environ.get("MLFLOW_SUPPRESS_PRINTING_URL_TO_STDOUT") == previous_print_setting
     artifact = client.download_artifacts(run_id, "model.json", str(tmp_path))

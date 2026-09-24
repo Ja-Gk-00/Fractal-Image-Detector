@@ -10,6 +10,8 @@ from fractal_detector.dataset import Sample, read_manifest
 from fractal_detector.io import atomic_json
 from fractal_detector.logging import configure_logging
 from fractal_detector.model import Detector, SplitTrainingResult, evaluate, train, train_splits
+from fractal_detector.parallel import resolve_workers
+from fractal_detector.sizing import resolve_features
 from fractal_detector.sources import iter_sources
 from fractal_detector.streaming import stream_task
 from fractal_detector.tracking import TrackingRun
@@ -22,11 +24,11 @@ def run_config(path: str | Path) -> dict[str, object]:
 
 def _source_groups(config: TaskConfig) -> dict[str, tuple[SourceSpec, ...]]:
     if config.data is not None:
-        if config.task == "train":
+        if config.task in {"train", "search"}:
             return {
                 name: getattr(config.data, name)
                 for name in ("train", "validation", "test")
-                if getattr(config.data, name)
+                if getattr(config.data, name) and (config.task != "search" or name != "test")
             }
         if config.split is None:
             raise ValueError("data requires a split selector")
@@ -40,6 +42,7 @@ def _source_groups(config: TaskConfig) -> dict[str, tuple[SourceSpec, ...]]:
 
 
 def run_task(config: TaskConfig, *, base_dir: str | Path = ".") -> dict[str, object]:
+    config = config.model_copy(update={"workers": resolve_workers(config.workers)})
     base = Path(base_dir).resolve()
     output = (base / config.output_dir).resolve()
     source_groups = _source_groups(config)
@@ -76,6 +79,9 @@ def run_task(config: TaskConfig, *, base_dir: str | Path = ".") -> dict[str, obj
             "test-features.jsonl",
             "validation-report.json",
             "test-report.json",
+            "history.json",
+            "search.json",
+            "resolved-features.json",
         )
     }
     inputs = set(source_paths)
@@ -84,7 +90,7 @@ def run_task(config: TaskConfig, *, base_dir: str | Path = ".") -> dict[str, obj
     if inputs & outputs:
         raise ValueError("output files would overwrite an input; choose a different output_dir")
     prepared: dict[str, Iterable[Sample]] = {}
-    supervised = config.task in {"train", "evaluate"}
+    supervised = config.task in {"train", "evaluate", "search"}
     for name, sources in source_groups.items():
         iterator = iter_sources(
             sources,
@@ -103,7 +109,7 @@ def run_task(config: TaskConfig, *, base_dir: str | Path = ".") -> dict[str, obj
     manifest_samples = list(samples) if isinstance(samples, list) else []
     split_samples = (
         {name: list(items) for name, items in prepared.items()}
-        if (config.task == "train" and config.data is not None)
+        if (config.task in {"train", "search"} and config.data is not None)
         else {}
     )
     inputs.update(
@@ -173,7 +179,34 @@ def run_task(config: TaskConfig, *, base_dir: str | Path = ".") -> dict[str, obj
                 "output_dir": str(output),
                 "run_id": tracking.run_id,
             }
-            match config.task:
+            match "neural" if config.neural is not None else config.task:
+                case "search":
+                    from fractal_detector.search import search_features
+
+                    if config.search is None:
+                        raise ValueError("search configuration is required")
+                    searched = search_features(
+                        split_samples["train"],
+                        split_samples["validation"],
+                        config.search,
+                        config.training,
+                        workers=config.workers,
+                    )
+                    searched.detector.save(output / "model.json")
+                    atomic_json(output / "search.json", searched.report)
+                    tracking.log_dict(searched.report, "search.json")
+                    tracking.log_artifact(output / "model.json")
+                    for index, trial in enumerate(searched.trials):
+                        tracking.log_metrics(
+                            {f"search.{k}": v for k, v in trial.metrics.items()}, step=index
+                        )
+                    summary.update(
+                        samples=sum(map(len, split_samples.values())), search=searched.report
+                    )
+                case "neural":
+                    from fractal_detector.neural_runner import run_neural_task
+
+                    summary = run_neural_task(config, base, output, prepared, tracking)
                 case "extract":
                     summary = stream_task(samples, config, output, tracking)
                 case "train":
@@ -222,7 +255,10 @@ def run_task(config: TaskConfig, *, base_dir: str | Path = ".") -> dict[str, obj
                     detector = Detector.load(base / config.model)
                     if (
                         "features" in config.model_fields_set
-                        and config.features != detector.artifact.feature_config
+                        and resolve_features(
+                            config.features, detector.artifact.feature_config.image_size
+                        )
+                        != detector.artifact.feature_config
                     ):
                         raise ValueError(
                             "prediction/evaluation preprocessing must match the saved model; omit features"

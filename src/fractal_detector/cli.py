@@ -24,7 +24,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     try:
         summary = run_config(args.config)
-    except (ValueError, OSError, RuntimeError) as exc:
+    except (ValueError, OSError, RuntimeError, ImportError) as exc:
         print(f"fractal-detector: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(summary, allow_nan=False))
