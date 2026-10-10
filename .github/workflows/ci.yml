@@ -43,7 +43,7 @@ jobs:
           cd "$RUNNER_TEMP"
           "$GITHUB_WORKSPACE/.cache/wheel-test/bin/python" -I -c "from fractal_detector import native_available; assert native_available()"
           "$GITHUB_WORKSPACE/.cache/wheel-test/bin/python" -I "$GITHUB_WORKSPACE/examples/demo.py" --output "$RUNNER_TEMP/fractal-wheel-demo"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: distributions-and-docs
           path: |
@@ -67,7 +67,7 @@ jobs:
       - run: uv run --locked python -c "from fractal_detector import native_available; assert native_available()"
       - run: uv run --locked pytest --cov --cov-report=term-missing --cov-report=xml
       - run: uv run --locked python examples/demo.py
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-${{ matrix.os }}
           path: coverage.xml
